@@ -4,10 +4,10 @@ import pandas as pd
 
 def create_report_dictionary(report_list, seq_list, id_column):
     """
-    :param report_list:
-    :param seq_list:
-    :param id_column:
-    :return:
+    :param report_list: List of paths to report files
+    :param seq_list: List of OLC Seq IDs
+    :param id_column: Column used to specify primary key
+    :return: Dictionary containing Seq IDs as keys and dataframes as values
     """
     # Create empty dict to store reports of interest
     report_dict = {}
@@ -27,9 +27,8 @@ def create_report_dictionary(report_list, seq_list, id_column):
 
 def get_combined_metadata(seq_list):
     """
-
-    :param seq_list:
-    :return:
+    :param seq_list: List of OLC Seq IDs
+    :return: Dictionary containing Seq IDs as keys and combinedMetadata dataframes as values
     """
     # Grab every single combinedMetadata file we have
     # all_reports = glob.glob('/mnt/nas/WGSspades/*/reports/combinedMetadata.csv')
@@ -40,9 +39,8 @@ def get_combined_metadata(seq_list):
 
 def get_gdcs(seq_list):
     """
-
-    :param seq_list:
-    :return:
+    :param seq_list: List of OLC Seq IDs
+    :return: Dictionary containing Seq IDs as keys and GDCS dataframes as values
     """
     # Grab every single combinedMetadata file we have
     # all_reports = glob.glob('/mnt/nas/WGSspades/*/reports/combinedMetadata.csv')
@@ -53,10 +51,10 @@ def get_gdcs(seq_list):
 
 def validate_genus(seq_list, genus):
     """
-    Validates whether or not the expected genus matches the observed genus parsed from combinedMetadata
-    :param seq_list:
-    :param genus:
-    :return:
+    Validates whether or not the expected genus matches the observed genus parsed from combinedMetadata.
+    :param seq_list: List of OLC Seq IDs
+    :param genus: String of expected genus (Salmonella, Listeria, Escherichia)
+    :return: Dictionary containing Seq IDs as keys and a 'valid status' as the value
     """
     metadata_reports = get_combined_metadata(seq_list)
 
@@ -74,6 +72,11 @@ def validate_genus(seq_list, genus):
 
 
 def generate_validated_list(seq_list, genus):
+    """
+    :param seq_list: List of OLC Seq IDs
+    :param genus: String of expected genus (Salmonella, Listeria, Escherichia)
+    :return: List containing each valid Seq ID
+    """
     # VALIDATION
     validated_list = []
     validated_dict = validate_genus(seq_list=seq_list, genus=genus)
@@ -91,8 +94,8 @@ def parse_geneseekr_profile(value):
     """
     Takes in a value from the GeneSeekr_Profile of combinedMetadata.csv and parses it to determine which markers are
     present. i.e. if the cell contains "invA;stn", a list containing invA, stn will be returned
-    :param value:
-    :return:
+    :param value: String delimited by ';' character containing markers
+    :return: List of markers parsed from value
     """
     detected_markers = []
     marker_list = ['invA', 'stn', 'IGS', 'hlyA', 'inlJ', 'VT1', 'VT2', 'VT2f', 'uidA', 'eae']
@@ -104,6 +107,10 @@ def parse_geneseekr_profile(value):
 
 
 def generate_gdcs_dict(gdcs_reports):
+    """
+    :param gdcs_reports: Dictionary derived from get_gdcs() function
+    :return: Dictionary containing parsed GDCS values
+    """
     gdcs_dict = {}
     for sample_id, df in gdcs_reports.items():
         # Grab values
