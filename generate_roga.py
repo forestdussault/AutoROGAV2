@@ -14,8 +14,8 @@ import os
 
 
 lab_info = {
-    'GTA-CFIA':('2301 Midland Ave., Scarborough, ON, M1P 4R7', '(416) 973-0798'),
-    'OLF-CFIA':('3851 Fallowfield Rd., Ottawa, ON, K2H 8P9', '(343) 212-0416')
+    'GTA-CFIA': ('2301 Midland Ave., Scarborough, ON, M1P 4R7', '(416) 973-0798'),
+    'OLF-CFIA': ('3851 Fallowfield Rd., Ottawa, ON, K2H 8P9', '(343) 212-0416')
 }
 
 
@@ -25,8 +25,7 @@ def redmine_roga():
     lab = 'GTA-CFIA'
 
     validated_list = generate_validated_list(seq_list=dummy_list,
-                                             genus=genus,
-                                             lab=lab)
+                                             genus=genus)
     if len(validated_list) == 0:
         print('ERROR: No samples provided matched the expected genus {}. Quitting.'.format(genus.upper()))
         quit()
@@ -78,7 +77,7 @@ def generate_roga(seq_list, genus, lab):
 
         # ESCHERICHIA TABLE
         if genus == 'Escherichia':
-            genesippr_table_columns = (bold('LSTS ID'), # TODO: Convert to LSTS
+            genesippr_table_columns = (bold('LSTS ID'),  # TODO: Convert to LSTS
                                        bold('Genus'),
                                        bold('VT1'),
                                        bold('VT2'),
@@ -105,7 +104,7 @@ def generate_roga(seq_list, genus, lab):
                         if 'VT2f' in marker_list: vt2f = '+'
                         if 'uidA' in marker_list: uida = '+'
                         if 'eae' in marker_list: eae = '+'
-                        table.add_row((sample_id, genus, vt1, vt2, vt2f, uida, eae ))
+                        table.add_row((sample_id, genus, vt1, vt2, vt2f, uida, eae))
                     table.add_hline()
 
                 create_caption(genesippr_section, 'i', 'caption')
@@ -113,7 +112,7 @@ def generate_roga(seq_list, genus, lab):
 
         # LISTERIA TABLE
         if genus == 'Listeria':
-            genesippr_table_columns = (bold('LSTS ID'), # TODO: Convert to LSTS
+            genesippr_table_columns = (bold('LSTS ID'),  # TODO: Convert to LSTS
                                        bold('Genus'),
                                        bold('Serotype'),
                                        bold('IGS'),
@@ -143,7 +142,7 @@ def generate_roga(seq_list, genus, lab):
                         if 'hlyA' in marker_list: hlya = '+'
                         if 'inlJ' in marker_list: inlj = '+'
 
-                        table.add_row((sample_id, genus, serotype, igs, hlya, inlj ))
+                        table.add_row((sample_id, genus, serotype, igs, hlya, inlj))
                     table.add_hline()
 
                 create_caption(genesippr_section, 'i', 'caption')
@@ -151,7 +150,7 @@ def generate_roga(seq_list, genus, lab):
 
         # SALMONELLA TABLE
         if genus == 'Salmonella':
-            genesippr_table_columns = (bold('LSTS ID'), # TODO: Convert to LSTS
+            genesippr_table_columns = (bold('LSTS ID'),  # TODO: Convert to LSTS
                                        bold('Genus'),
                                        bold('Serovar'),
                                        bold('invA'),
@@ -174,12 +173,12 @@ def generate_roga(seq_list, genus, lab):
                         serovar = df.loc[df['SeqID'] == sample_id]['SISTR_serovar'].values[0]
 
                         # Markers
-                        marker_list =  df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
+                        marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
                         (inva, stn) = '-', '-'
                         if 'invA' in marker_list: inva = '+'
                         if 'stn' in marker_list: stn = '+'
 
-                        table.add_row((sample_id, genus, serovar, inva, stn ))
+                        table.add_row((sample_id, genus, serovar, inva, stn))
                     table.add_hline()
 
                 create_caption(genesippr_section, 'i', 'caption')
@@ -216,13 +215,13 @@ def generate_roga(seq_list, genus, lab):
                     passfail = gdcs_dict[sample_id][1]
 
                     # Add row
-                    table.add_row((sample_id, total_length, average_coverage_depth, num_contigs, matches, passfail ))
+                    table.add_row((sample_id, total_length, average_coverage_depth, num_contigs, matches, passfail))
                 table.add_hline()
         create_caption(sequence_section, 'i', 'Total length refers to the total number of base pairs in the assembly')
 
         # Pipeline metadata table
         pipeline_metadata_columns = (bold('Seq ID'),
-                                     bold('Pipeline Version')) # TODO: Parse in database version once it's ready
+                                     bold('Pipeline Version'))  # TODO: Parse in database version once it's ready
 
         with doc.create(pl.Subsection('Pipeline Metadata', numbering=False)) as sequence_section:
             with doc.create(pl.Tabular('|c|c|')) as table:
@@ -243,7 +242,6 @@ def generate_roga(seq_list, genus, lab):
 
                 table.add_hline()
         create_caption(sequence_section, 'i', 'text.')
-
 
     doc.generate_pdf('ROGA_{}_{}'.format(datetime.today().strftime('%Y-%m-%d'), genus), clean_tex=False)
 
@@ -290,12 +288,11 @@ def get_image():
     return image_filename
 
 
-def validate_genus(seq_list, genus, lab):
+def validate_genus(seq_list, genus):
     """
     Validates whether or not the expected genus matches the observed genus parsed from combinedMetadata
     :param seq_list:
     :param genus:
-    :param lab:
     :return:
     """
     metadata_reports = extract_reports.get_combined_metadata(seq_list)
@@ -313,10 +310,10 @@ def validate_genus(seq_list, genus, lab):
     return valid_status
 
 
-def generate_validated_list(seq_list, genus, lab):
+def generate_validated_list(seq_list, genus):
     # VALIDATION
     validated_list = []
-    validated_dict = validate_genus(seq_list=seq_list, genus=genus, lab=lab)
+    validated_dict = validate_genus(seq_list=seq_list, genus=genus)
 
     for seqid, valid_status in validated_dict.items():
         if validated_dict[seqid]:
