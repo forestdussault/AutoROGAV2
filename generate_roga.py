@@ -54,11 +54,54 @@ def generate_roga(seq_list, genus, lab):
 
         # ESCHERICHIA TABLE
         if genus == 'Escherichia':
-            pass
+            genesippr_table_columns = (bold('LSTS ID'), # TODO: Convert to LSTS
+                                       bold('Genus'),
+                                       bold('VT1'),
+                                       bold('VT2'),
+                                       bold('VT2f'),
+                                       bold('uidA'),
+                                       bold('eae'))
+
+            with doc.create(pl.Subsection('GeneSippr Analysis', numbering=False)) as genesippr_section:
+                with doc.create(pl.Tabular('|c|c|c|c|c|c|c|')) as table:
+                    # Header
+                    table.add_hline()
+                    table.add_row(genesippr_table_columns)
+
+                    # Rows
+                    for sample_id, df in metadata_reports.items():
+                        table.add_hline()
+                        genus = df.loc[df['SeqID'] == sample_id]['Genus'].values[0]
+                        table.add_row((sample_id, genus, 'temp', 'temp', 'temp', 'temp', 'temp' ))
+                    table.add_hline()
+
+                create_caption(genesippr_section, 'i', 'caption')
+                create_caption(genesippr_section, 'ii', 'another caption')
 
         # LISTERIA TABLE
         if genus == 'Listeria':
-            pass
+            genesippr_table_columns = (bold('LSTS ID'), # TODO: Convert to LSTS
+                                       bold('Genus'),
+                                       bold('Serotype'),
+                                       bold('IGS'),
+                                       bold('hlyA'),
+                                       bold('inlJ'))
+
+            with doc.create(pl.Subsection('GeneSippr Analysis', numbering=False)) as genesippr_section:
+                with doc.create(pl.Tabular('|c|c|c|c|c|c|')) as table:
+                    # Header
+                    table.add_hline()
+                    table.add_row(genesippr_table_columns)
+
+                    # Rows
+                    for sample_id, df in metadata_reports.items():
+                        table.add_hline()
+                        genus = df.loc[df['SeqID'] == sample_id]['Genus'].values[0]
+                        table.add_row((sample_id, genus, 'temp', 'temp', 'temp', 'temp' ))
+                    table.add_hline()
+
+                create_caption(genesippr_section, 'i', 'caption')
+                create_caption(genesippr_section, 'ii', 'another caption')
 
         # SALMONELLA TABLE
         if genus == 'Salmonella':
@@ -78,7 +121,7 @@ def generate_roga(seq_list, genus, lab):
                     for sample_id, df in metadata_reports.items():
                         table.add_hline()
                         genus = df.loc[df['SeqID'] == sample_id]['Genus'].values[0]
-                        table.add_row((sample_id, genus, 'N/A', '+', '-' ))
+                        table.add_row((sample_id, genus, 'temp', 'temp', 'temp' ))
                     table.add_hline()
 
                 create_caption(genesippr_section, 'i', 'caption')
@@ -201,11 +244,30 @@ def validate_genus(seq_list, genus, lab):
         df = metadata_reports[seqid]
         observed_genus = df.loc[df['SeqID'] == seqid]['Genus'].values[0]
         if observed_genus == genus:
-            valid_status[seqid] = True  # Valid
+            valid_status[seqid] = True  # Valid genus
         else:
-            valid_status[seqid] = False  # Invalid
+            valid_status[seqid] = False  # Invalid genus
 
     return valid_status
+
+
+def generate_validated_list(seq_list, genus, lab):
+    # VALIDATION
+    validated_list = []
+    validated_dict = validate_genus(seq_list=seq_list, genus=genus, lab=lab)
+
+    for seqid, valid_status in validated_dict.items():
+        if validated_dict[seqid]:
+            validated_list.append(seqid)
+        else:
+            print('WARNING: '
+                  'Seq ID {} does not match the expected genus of {} and was ignored.'.format(seqid, genus.upper()))
+    return validated_list
+
+
+def parse_geneseekr_profile():
+    # TODO: This function needs to parse values from the GeneSeekr_Profile column from combinedMetadata.csv
+    pass
 
 
 def main():
@@ -213,20 +275,14 @@ def main():
     genus = 'Salmonella'
     lab = 'GTA-CFIA'
 
-
-   # VALIDATION
-    validated_list = []
-    validated_dict = validate_genus(seq_list=dummy_list, genus=genus, lab=lab)
-
-    for seqid, valid_status in validated_dict.items():
-        if validated_dict[seqid]:
-            validated_list.append(seqid)
-        else:
-            print('WARNING: '
-                  'Seq ID {} does not match the expected genus of {} and will be ignored.'.format(seqid, genus.upper()))
+    validated_list = generate_validated_list(seq_list=dummy_list,
+                                             genus=genus,
+                                             lab=lab)
 
     # GENERATE REPORT
-    generate_roga(seq_list=validated_list, genus=genus, lab='GTA-CFIA')
+    generate_roga(seq_list=validated_list,
+                  genus=genus,
+                  lab=lab)
 
 if __name__ == '__main__':
     main()
