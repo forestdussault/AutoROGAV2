@@ -2,7 +2,7 @@
 
 from pylatex.utils import italic, bold
 from datetime import datetime
-import extract_reports
+import extract_report_data
 import pylatex as pl
 import click
 import os
@@ -24,7 +24,7 @@ def redmine_roga():
     genus = 'Salmonella'
     lab = 'GTA-CFIA'
 
-    validated_list = generate_validated_list(seq_list=dummy_list,
+    validated_list = extract_report_data.generate_validated_list(seq_list=dummy_list,
                                              genus=genus)
     if len(validated_list) == 0:
         print('ERROR: No samples provided matched the expected genus {}. Quitting.'.format(genus.upper()))
@@ -40,11 +40,11 @@ def redmine_roga():
 def generate_roga(seq_list, genus, lab):
 
     # Grab combinedMetadata dataframes for each requested Seq ID
-    metadata_reports = extract_reports.get_combined_metadata(seq_list)
+    metadata_reports = extract_report_data.get_combined_metadata(seq_list)
 
     # Grab GDCS data for each requested Seq ID
-    gdcs_reports = extract_reports.get_gdcs(seq_list)
-    gdcs_dict = generate_gdcs_dict(gdcs_reports)
+    gdcs_reports = extract_report_data.get_gdcs(seq_list)
+    gdcs_dict = extract_report_data.generate_gdcs_dict(gdcs_reports)
 
     # Page setup
     geometry_options = {"tmargin": "2cm",
@@ -286,68 +286,6 @@ def get_image():
     """
     image_filename = os.path.join(os.path.dirname(__file__), 'CFIA_logo.png')
     return image_filename
-
-
-def validate_genus(seq_list, genus):
-    """
-    Validates whether or not the expected genus matches the observed genus parsed from combinedMetadata
-    :param seq_list:
-    :param genus:
-    :return:
-    """
-    metadata_reports = extract_reports.get_combined_metadata(seq_list)
-
-    valid_status = {}
-
-    for seqid in seq_list:
-        df = metadata_reports[seqid]
-        observed_genus = df.loc[df['SeqID'] == seqid]['Genus'].values[0]
-        if observed_genus == genus:
-            valid_status[seqid] = True  # Valid genus
-        else:
-            valid_status[seqid] = False  # Invalid genus
-
-    return valid_status
-
-
-def generate_validated_list(seq_list, genus):
-    # VALIDATION
-    validated_list = []
-    validated_dict = validate_genus(seq_list=seq_list, genus=genus)
-
-    for seqid, valid_status in validated_dict.items():
-        if validated_dict[seqid]:
-            validated_list.append(seqid)
-        else:
-            print('WARNING: '
-                  'Seq ID {} does not match the expected genus of {} and was ignored.'.format(seqid, genus.upper()))
-    return validated_list
-
-
-def parse_geneseekr_profile(value):
-    """
-    Takes in a value from the GeneSeekr_Profile of combinedMetadata.csv and parses it to determine which markers are
-    present. i.e. if the cell contains "invA;stn", a list containing invA, stn will be returned
-    :param value:
-    :return:
-    """
-    detected_markers = []
-    marker_list = ['invA', 'stn', 'IGS', 'hlyA', 'inlJ', 'VT1', 'VT2', 'VT2f', 'uidA', 'eae']
-    markers = value.split(';')
-    for marker in markers:
-        if marker in marker_list:
-            detected_markers.append(marker)
-    return detected_markers
-
-
-def generate_gdcs_dict(gdcs_reports):
-    gdcs_dict = {}
-    for sample_id, df in gdcs_reports.items():
-        # Grab values
-        matches = df.loc[df['Strain'] == sample_id]['Matches'].values[0]
-        passfail = df.loc[df['Strain'] == sample_id]['Pass/Fail'].values[0]
-        gdcs_dict[sample_id] = (matches, passfail)
-    return gdcs_dict
 
 
 if __name__ == '__main__':
