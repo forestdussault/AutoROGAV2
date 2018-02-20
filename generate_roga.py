@@ -20,6 +20,10 @@ lab_info = {
 
 
 def redmine_roga():
+    """
+    Main method for generating a ROGA. Will eventually be ported over to support Redmine.
+    :return:
+    """
     dummy_list = ('2017-SEQ-0725', '2017-SEQ-0726', '2017-SEQ-0727')  # Tuple this to keep the order
     genus = 'Salmonella'
     lab = 'GTA-CFIA'
@@ -38,6 +42,12 @@ def redmine_roga():
 
 
 def generate_roga(seq_list, genus, lab):
+    """
+    Generates PDF ROGA
+    :param seq_list: List of OLC Seq IDs
+    :param genus: Expected Genus for samples (Salmonella, Listeria, or Escherichia)
+    :param lab: ID for lab report is being generated for
+    """
 
     # Grab combinedMetadata dataframes for each requested Seq ID
     metadata_reports = extract_report_data.get_combined_metadata(seq_list)
@@ -63,7 +73,7 @@ def generate_roga(seq_list, genus, lab):
     # DOCUMENT BODY/CREATION
     with doc.create(pl.Section('Report of Genomic Analysis', numbering=False)):
         # LAB SUMMARY
-        with doc.create(pl.Tabu('lcr', booktabs=True)) as table:
+        with doc.create(pl.Tabular('lcr', booktabs=True)) as table:
             table.add_row(bold('Laboratory'),
                           bold('Address'),
                           bold('Tel #'))
@@ -260,10 +270,10 @@ def produce_header_footer():
     with header.create(pl.Head("R")):
         header.append("Date Report Issued: " + datetime.today().strftime('%Y-%m-%d'))
 
-    # Legend
+    # Footer
     with header.create(pl.Foot("C")):
         with header.create(pl.Tabular('lcr')) as table:
-            table.add_row(('+ : Pass', '? : Indeterminate', '- : Fail'))
+            table.add_row(('Footer L', 'Footer C', 'Footer R'))
 
     return header
 
