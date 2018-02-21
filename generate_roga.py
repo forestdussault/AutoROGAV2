@@ -8,13 +8,26 @@ import click
 import os
 
 
-# TODO: Add LSTS ID.
 # TODO: Add rMLST, MLST
-# TODO: GDCS + GenomeQAML combined metric. Everything must pass in order to be listed as 'PASS'.
+# TODO: GDCS + GenomeQAML combined metric. Everything must pass in order to be listed as 'PASS'
+# TODO: Port for Redmine usage
 
 
+"""
+A note on Sample IDs:
+
+LSTS ID should be parsed from SampleSheet.csv by the COWBAT pipeline, and available within the combinedMetadata.csv
+file that is central to this script's extraction of data. The LSTS ID is available under the SampleName column in
+combinedMetadata.csv.
+"""
+
+
+# TODO: Finish populating this dictionary
 lab_info = {
     'GTA-CFIA': ('2301 Midland Ave., Scarborough, ON, M1P 4R7', '(416) 973-0798'),
+    'BUR-CFIA': ('3155 Willington Green, Burnaby, BC, V5G 4P2', '(604) 292-6028'),
+    'DAR-CFIA': ('1992 Agency Dr., Dartmouth, NS, B2Y 3Z7', '(902) 536-1046'),
+    'OLC-CFIA': ('960 Carling Ave, Ottawa, ON, K1A 0Y9', '(613) 759-1220'),
     'OLF-CFIA': ('3851 Fallowfield Rd., Ottawa, ON, K2H 8P9', '(343) 212-0416')
 }
 
@@ -24,14 +37,21 @@ def redmine_roga():
     Main method for generating a ROGA. Will eventually be ported over to support Redmine.
     :return:
     """
-    dummy_list = ('2017-SEQ-0725', '2017-SEQ-0726', '2017-SEQ-0727')  # Tuple this to keep the order
-    genus = 'Salmonella'
+    # dummy_list = ('2017-SEQ-0725',)  # Tuple this to keep the order
+    # genus = 'Salmonella'
+
+    # dummy_list = ('2017-SEQ-0773',)  # Tuple this to keep the order
+    # genus = 'Escherichia'
+    #
+    dummy_list = ('2017-SEQ-1222', '2017-SEQ-1223')  # Tuple this to keep the order
+    genus = 'Listeria'
+
     lab = 'GTA-CFIA'
 
     validated_list = extract_report_data.generate_validated_list(seq_list=dummy_list,
-                                             genus=genus)
+                                                                 genus=genus)
     if len(validated_list) == 0:
-        print('ERROR: No samples provided matched the expected genus {}. Quitting.'.format(genus.upper()))
+        print('ERROR: No samples provided matched the expected genus. Quitting.'.format(genus.upper()))
         quit()
 
     # GENERATE REPORT
@@ -93,10 +113,11 @@ def generate_roga(seq_list, genus, lab):
                                        bold('VT2'),
                                        bold('VT2f'),
                                        bold('uidA'),
-                                       bold('eae'))
+                                       bold('eae'),
+                                       bold('Serotype'))
 
             with doc.create(pl.Subsection('GeneSippr Analysis', numbering=False)) as genesippr_section:
-                with doc.create(pl.Tabularx('|c|c|c|c|c|c|c|')) as table:
+                with doc.create(pl.Tabular('|c|c|c|c|c|c|c|c|')) as table:
                     # Header
                     table.add_hline()
                     table.add_row(genesippr_table_columns)
@@ -104,33 +125,45 @@ def generate_roga(seq_list, genus, lab):
                     # Rows
                     for sample_id, df in metadata_reports.items():
                         table.add_hline()
+
+                        # ID
+                        lsts_id = df.loc[df['SeqID'] == sample_id]['SampleName'].values[0]
+
+                        # Genus (pulled from 16S)
                         genus = df.loc[df['SeqID'] == sample_id]['Genus'].values[0]
 
+                        # Serotype
+                        serotype = df.loc[df['SeqID'] == sample_id]['E_coli_Serotype'].values[0]
+
                         # Getting marker status. There is certainly a nicer way to do this.
-                        marker_list =  df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
+                        marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
                         (vt1, vt2, vt2f, uida, eae) = '-', '-', '-', '-', '-'
-                        if 'VT1' in marker_list: vt1 = '+'
-                        if 'VT2' in marker_list: vt2 = '+'
-                        if 'VT2f' in marker_list: vt2f = '+'
-                        if 'uidA' in marker_list: uida = '+'
-                        if 'eae' in marker_list: eae = '+'
-                        table.add_row((sample_id, genus, vt1, vt2, vt2f, uida, eae))
+                        if 'VT1' in marker_list:
+                            vt1 = '+'
+                        if 'VT2' in marker_list:
+                            vt2 = '+'
+                        if 'VT2f' in marker_list:
+                            vt2f = '+'
+                        if 'uidA' in marker_list:
+                            uida = '+'
+                        if 'eae' in marker_list:
+                            eae = '+'
+                        table.add_row((lsts_id, genus, vt1, vt2, vt2f, uida, eae, serotype))
                     table.add_hline()
 
-                create_caption(genesippr_section, 'i', 'caption')
-                create_caption(genesippr_section, 'ii', 'another caption')
+                create_caption(genesippr_section, 'i', ' "+" indicates marker presence, "-" indicates marker absence')
+                create_caption(genesippr_section, 'ii', ' Genus determined using the 16S region')
 
         # LISTERIA TABLE
         if genus == 'Listeria':
             genesippr_table_columns = (bold('LSTS ID'),  # TODO: Convert to LSTS
                                        bold('Genus'),
-                                       bold('Serotype'),
                                        bold('IGS'),
                                        bold('hlyA'),
                                        bold('inlJ'))
 
             with doc.create(pl.Subsection('GeneSippr Analysis', numbering=False)) as genesippr_section:
-                with doc.create(pl.Tabular('|c|c|c|c|c|c|')) as table:
+                with doc.create(pl.Tabular('|c|c|c|c|c|')) as table:
                     # Header
                     table.add_hline()
                     table.add_row(genesippr_table_columns)
@@ -139,24 +172,30 @@ def generate_roga(seq_list, genus, lab):
                     for sample_id, df in metadata_reports.items():
                         table.add_hline()
 
+                        # ID
+                        lsts_id = df.loc[df['SeqID'] == sample_id]['SampleName'].values[0]
+
                         # Genus
                         genus = df.loc[df['SeqID'] == sample_id]['Genus'].values[0]
 
-                        # Serotype # TODO: grab this value
-                        serotype = 'temp'
+                        # # Serotype # TODO: grab this value
+                        # serotype = 'temp'
 
                         # Markers
-                        marker_list =  df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
+                        marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
                         (igs, hlya, inlj) = '-', '-', '-'
-                        if 'IGS' in marker_list: igs = '+'
-                        if 'hlyA' in marker_list: hlya = '+'
-                        if 'inlJ' in marker_list: inlj = '+'
+                        if 'IGS' in marker_list:
+                            igs = '+'
+                        if 'hlyA' in marker_list:
+                            hlya = '+'
+                        if 'inlJ' in marker_list:
+                            inlj = '+'
 
-                        table.add_row((sample_id, genus, serotype, igs, hlya, inlj))
+                        table.add_row((lsts_id, genus, igs, hlya, inlj))
                     table.add_hline()
 
-                create_caption(genesippr_section, 'i', 'caption')
-                create_caption(genesippr_section, 'ii', 'another caption')
+                create_caption(genesippr_section, 'i', ' "+" indicates marker presence, "-" indicates marker absence')
+                create_caption(genesippr_section, 'ii', ' Genus determined using the 16S region')
 
         # SALMONELLA TABLE
         if genus == 'Salmonella':
@@ -176,6 +215,9 @@ def generate_roga(seq_list, genus, lab):
                     for sample_id, df in metadata_reports.items():
                         table.add_hline()
 
+                        # ID
+                        lsts_id = df.loc[df['SeqID'] == sample_id]['SampleName'].values[0]
+
                         # Genus
                         genus = df.loc[df['SeqID'] == sample_id]['Genus'].values[0]
 
@@ -185,20 +227,23 @@ def generate_roga(seq_list, genus, lab):
                         # Markers
                         marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
                         (inva, stn) = '-', '-'
-                        if 'invA' in marker_list: inva = '+'
-                        if 'stn' in marker_list: stn = '+'
+                        if 'invA' in marker_list:
+                            inva = '+'
+                        if 'stn' in marker_list:
+                            stn = '+'
 
-                        table.add_row((sample_id, genus, serovar, inva, stn))
+                        table.add_row((lsts_id, genus, serovar, inva, stn))
                     table.add_hline()
 
-                create_caption(genesippr_section, 'i', 'caption')
-                create_caption(genesippr_section, 'ii', 'another caption')
+                create_caption(genesippr_section, 'i', ' "+" indicates marker presence, "-" indicates marker absence')
+                create_caption(genesippr_section, 'ii', ' Serovar determined with SISTR v1.x')
+                create_caption(genesippr_section, 'iii', ' Genus determined using the 16S region')
 
         #########################
         #########################
 
         # SEQUENCE DATA QUALITY
-        sequence_quality_columns = (bold('Seq ID'),
+        sequence_quality_columns = (bold('LSTS ID'),
                                     bold('Total Length'),
                                     bold('Coverage'),
                                     bold('# of Contigs'),
@@ -218,23 +263,32 @@ def generate_roga(seq_list, genus, lab):
                     table.add_hline()
 
                     # Grab values
+                    lsts_id = df.loc[df['SeqID'] == sample_id]['SampleName'].values[0]
                     total_length = df.loc[df['SeqID'] == sample_id]['TotalLength'].values[0]
                     average_coverage_depth = df.loc[df['SeqID'] == sample_id]['AverageCoverageDepth'].values[0]
                     num_contigs = df.loc[df['SeqID'] == sample_id]['NumContigs'].values[0]
                     matches = gdcs_dict[sample_id][0]
+
                     passfail = gdcs_dict[sample_id][1]
+                    if passfail == '+':
+                        passfail = 'Pass'
+                    elif passfail == '-':
+                        passfail = 'Fail'
 
                     # Add row
-                    table.add_row((sample_id, total_length, average_coverage_depth, num_contigs, matches, passfail))
+                    table.add_row((lsts_id, total_length, average_coverage_depth,
+                                   num_contigs, matches, passfail))
                 table.add_hline()
-        create_caption(sequence_section, 'i', 'Total length refers to the total number of base pairs in the assembly')
+        create_caption(sequence_section, 'i', ' GDCS refers to genomically dispersed conserved sequences')
+        create_caption(sequence_section, 'ii', ' Pass/Fail is determined by evaluating # of GDCS matches')
 
         # Pipeline metadata table
-        pipeline_metadata_columns = (bold('Seq ID'),
+        pipeline_metadata_columns = (bold('LSTS ID'),
+                                     bold('Seq ID'),
                                      bold('Pipeline Version'))  # TODO: Parse in database version once it's ready
 
-        with doc.create(pl.Subsection('Pipeline Metadata', numbering=False)) as sequence_section:
-            with doc.create(pl.Tabular('|c|c|')) as table:
+        with doc.create(pl.Subsection('Pipeline Metadata', numbering=False)):
+            with doc.create(pl.Tabular('|c|c|c|')) as table:
                 # Header
                 table.add_hline()
                 table.add_row(pipeline_metadata_columns)
@@ -243,15 +297,17 @@ def generate_roga(seq_list, genus, lab):
                 for sample_id, df in metadata_reports.items():
                     table.add_hline()
 
-                    # Grab values
+                    # LSTS ID
+                    lsts_id = df.loc[df['SeqID'] == sample_id]['SampleName'].values[0]
+
+                    # Pipeline version
                     pipeline_version = df.loc[df['SeqID'] == sample_id]['PipelineVersion'].values[0]
                     # database_version = df.loc[df['SeqID'] == sample_id]['DatabaseVersion'].values[0]
 
                     # Add row
-                    table.add_row((sample_id, pipeline_version))
+                    table.add_row((lsts_id, sample_id, pipeline_version))
 
                 table.add_hline()
-        create_caption(sequence_section, 'i', 'text.')
 
     doc.generate_pdf('ROGA_{}_{}'.format(datetime.today().strftime('%Y-%m-%d'), genus), clean_tex=False)
 
@@ -273,7 +329,7 @@ def produce_header_footer():
     # Footer
     with header.create(pl.Foot("C")):
         with header.create(pl.Tabular('lcr')) as table:
-            table.add_row(('Footer L', 'Footer C', 'Footer R'))
+            table.add_row(('', bold('Report generated via OLC AutoROGA v0.0.1'), ''))
 
     return header
 

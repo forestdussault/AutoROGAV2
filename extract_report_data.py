@@ -25,6 +25,7 @@ def create_report_dictionary(report_list, seq_list, id_column):
     return report_dict
 
 
+ # TODO: Fix this for production to retrieve full list of combinedMetadata.csv reports
 def get_combined_metadata(seq_list):
     """
     :param seq_list: List of OLC Seq IDs
@@ -32,11 +33,12 @@ def get_combined_metadata(seq_list):
     """
     # Grab every single combinedMetadata file we have
     # all_reports = glob.glob('/mnt/nas/WGSspades/*/reports/combinedMetadata.csv')
-    metadata_reports = glob.glob('/home/dussaultf/Documents/COWBAT_TEST/reports/combinedMetadata.csv')
+    metadata_reports = glob.glob('/home/dussaultf/Documents/COWBAT_TEST_V2/reports/combinedMetadata.csv')
     metadata_report_dict = create_report_dictionary(report_list=metadata_reports, seq_list=seq_list, id_column='SeqID')
     return metadata_report_dict
 
 
+# TODO: Fix this for production to retrieve full list of GDCS reports
 def get_gdcs(seq_list):
     """
     :param seq_list: List of OLC Seq IDs
@@ -44,7 +46,7 @@ def get_gdcs(seq_list):
     """
     # Grab every single combinedMetadata file we have
     # all_reports = glob.glob('/mnt/nas/WGSspades/*/reports/combinedMetadata.csv')
-    gdcs_reports = glob.glob('/home/dussaultf/Documents/COWBAT_TEST/reports/GDCS.csv')
+    gdcs_reports = glob.glob('/home/dussaultf/Documents/COWBAT_TEST_V2/reports/GDCS.csv')
     gdcs_report_dict = create_report_dictionary(report_list=gdcs_reports, seq_list=seq_list, id_column='Strain')
     return gdcs_report_dict
 
@@ -61,6 +63,7 @@ def validate_genus(seq_list, genus):
     valid_status = {}
 
     for seqid in seq_list:
+        print('Checking {}'.format(seqid))
         df = metadata_reports[seqid]
         observed_genus = df.loc[df['SeqID'] == seqid]['Genus'].values[0]
         if observed_genus == genus:
