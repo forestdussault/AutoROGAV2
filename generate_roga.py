@@ -6,10 +6,12 @@ import extract_report_data
 import pylatex as pl
 import click
 import os
+import re
 
 
 # TODO: Add rMLST, MLST
 # TODO: GDCS + GenomeQAML combined metric. Everything must pass in order to be listed as 'PASS'
+# TODO: Make a companion document that desribes the metrics and how they were achieved in detail
 # TODO: Port for Redmine usage
 
 
@@ -18,7 +20,7 @@ A note on Sample IDs:
 
 LSTS ID should be parsed from SampleSheet.csv by the COWBAT pipeline, and available within the combinedMetadata.csv
 file that is central to this script's extraction of data. The LSTS ID is available under the SampleName column in
-combinedMetadata.csv.
+combinedMetadata.csv.O
 """
 
 
@@ -40,11 +42,11 @@ def redmine_roga():
     # dummy_list = ('2017-SEQ-0725',)  # Tuple this to keep the order
     # genus = 'Salmonella'
 
-    # dummy_list = ('2017-SEQ-0773',)  # Tuple this to keep the order
-    # genus = 'Escherichia'
+    dummy_list = ('2017-SEQ-0773',)  # Tuple this to keep the order
+    genus = 'Escherichia'
     #
-    dummy_list = ('2017-SEQ-1222', '2017-SEQ-1223')  # Tuple this to keep the order
-    genus = 'Listeria'
+    # dummy_list = ('2017-SEQ-1222', '2017-SEQ-1223')  # Tuple this to keep the order
+    # genus = 'Listeria'
 
     lab = 'GTA-CFIA'
 
@@ -102,22 +104,27 @@ def generate_roga(seq_list, genus, lab):
         # TEXT SUMMARY
         with doc.create(pl.Subsection('Identification Summary', numbering=False)) as summary:
             summary.append('The following strains are confirmed to be ')
-            summary.append(italic(genus))
-            summary.append('.')
+            summary.append(italic(genus + ' '))
+
+            if genus == 'Escherichia':
+                summary.append('based on 16S sequence and presence of marker gene ')
+                summary.append(italic('uidA.'))
+            else:
+                summary.append('.')
 
         # ESCHERICHIA TABLE
         if genus == 'Escherichia':
             genesippr_table_columns = (bold('LSTS ID'),  # TODO: Convert to LSTS
-                                       bold('Genus'),
-                                       bold('VT1'),
-                                       bold('VT2'),
-                                       bold('VT2f'),
-                                       bold('uidA'),
-                                       bold('eae'),
-                                       bold('Serotype'))
+                                       # bold(pl.NoEscape(r'VT1{\footnotesize \textsuperscript {b}}')),
+                                       # bold(pl.NoEscape(r'VT2{\footnotesize \textsuperscript {b}}')),
+                                       # bold(pl.NoEscape(r'VT2f{\footnotesize \textsuperscript {b}}')),
+                                       bold(pl.NoEscape(r'Verotoxin Profile{\footnotesize \textsuperscript {a}}')),
+                                       bold(pl.NoEscape(r'uidA{\footnotesize \textsuperscript {b}}')),
+                                       bold(pl.NoEscape(r'eae{\footnotesize \textsuperscript {b}}')),
+                                       bold(pl.NoEscape(r'Predicted Serotype{\footnotesize \textsuperscript {c}}')))
 
-            with doc.create(pl.Subsection('GeneSippr Analysis', numbering=False)) as genesippr_section:
-                with doc.create(pl.Tabular('|c|c|c|c|c|c|c|c|')) as table:
+            with doc.create(pl.Subsection('GeneSeekr Analysis', numbering=False)) as genesippr_section:
+                with doc.create(pl.Tabular('|c|c|c|c|c|')) as table:
                     # Header
                     table.add_hline()
                     table.add_row(genesippr_table_columns)
@@ -135,35 +142,43 @@ def generate_roga(seq_list, genus, lab):
                         # Serotype
                         serotype = df.loc[df['SeqID'] == sample_id]['E_coli_Serotype'].values[0]
 
+                        # Remove % identity
+                        fixed_serotype = remove_bracketed_values(serotype)
+
+                        # Verotoxin
+                        vtyper = df.loc[df['SeqID'] == sample_id]['Vtyper_Profile'].values[0]
+
                         # Getting marker status. There is certainly a nicer way to do this.
                         marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
                         (vt1, vt2, vt2f, uida, eae) = '-', '-', '-', '-', '-'
-                        if 'VT1' in marker_list:
-                            vt1 = '+'
-                        if 'VT2' in marker_list:
-                            vt2 = '+'
-                        if 'VT2f' in marker_list:
-                            vt2f = '+'
+                        # if 'VT1' in marker_list:
+                        #     vt1 = '+'
+                        # if 'VT2' in marker_list:
+                        #     vt2 = '+'
+                        # if 'VT2f' in marker_list:
+                        #     vt2f = '+'
                         if 'uidA' in marker_list:
                             uida = '+'
                         if 'eae' in marker_list:
                             eae = '+'
-                        table.add_row((lsts_id, genus, vt1, vt2, vt2f, uida, eae, serotype))
+                        table.add_row((lsts_id, vtyper, uida, eae, fixed_serotype))
                     table.add_hline()
 
-                create_caption(genesippr_section, 'i', ' "+" indicates marker presence, "-" indicates marker absence')
-                create_caption(genesippr_section, 'ii', ' Genus determined using the 16S region')
+                create_caption(genesippr_section, 'a', '"+" indicates marker presence, "-" indicates marker was not detected')
+                create_caption(genesippr_section, 'b', 'Antigen determination based on databases available at the '
+                                                         'Center for Genomic Epidemiology (https://cge.cbs.dtu.dk).'
+                                                         '\nPercent Identity relative to serotype marker is '
+                                                         'indicated in parentheses.')
 
         # LISTERIA TABLE
         if genus == 'Listeria':
             genesippr_table_columns = (bold('LSTS ID'),  # TODO: Convert to LSTS
-                                       bold('Genus'),
-                                       bold('IGS'),
-                                       bold('hlyA'),
-                                       bold('inlJ'))
+                                       bold(pl.NoEscape(r'IGS{\footnotesize \textsuperscript {a}}')),
+                                       bold(pl.NoEscape(r'hlyA{\footnotesize \textsuperscript {a}}')),
+                                       bold(pl.NoEscape(r'inlJ{\footnotesize \textsuperscript {a}}')))
 
             with doc.create(pl.Subsection('GeneSippr Analysis', numbering=False)) as genesippr_section:
-                with doc.create(pl.Tabular('|c|c|c|c|c|')) as table:
+                with doc.create(pl.Tabular('|c|c|c|c|')) as table:
                     # Header
                     table.add_hline()
                     table.add_row(genesippr_table_columns)
@@ -191,19 +206,17 @@ def generate_roga(seq_list, genus, lab):
                         if 'inlJ' in marker_list:
                             inlj = '+'
 
-                        table.add_row((lsts_id, genus, igs, hlya, inlj))
+                        table.add_row((lsts_id, igs, hlya, inlj))
                     table.add_hline()
+                create_caption(genesippr_section, 'a', '"+" indicates marker presence, "-" indicates marker absence')
 
-                create_caption(genesippr_section, 'i', ' "+" indicates marker presence, "-" indicates marker absence')
-                create_caption(genesippr_section, 'ii', ' Genus determined using the 16S region')
 
         # SALMONELLA TABLE
         if genus == 'Salmonella':
             genesippr_table_columns = (bold('LSTS ID'),  # TODO: Convert to LSTS
-                                       bold('Genus'),
-                                       bold('Serovar'),
-                                       bold('invA'),
-                                       bold('stn'))
+                                       bold(pl.NoEscape(r'Serovar{\footnotesize \textsuperscript {b}}')),
+                                       bold(pl.NoEscape(r'invA{\footnotesize \textsuperscript {c}}')),
+                                       bold(pl.NoEscape(r'stn{\footnotesize \textsuperscript {c}}')),)
 
             with doc.create(pl.Subsection('GeneSippr Analysis', numbering=False)) as genesippr_section:
                 with doc.create(pl.Tabular('|c|c|c|c|c|')) as table:
@@ -219,7 +232,7 @@ def generate_roga(seq_list, genus, lab):
                         lsts_id = df.loc[df['SeqID'] == sample_id]['SampleName'].values[0]
 
                         # Genus
-                        genus = df.loc[df['SeqID'] == sample_id]['Genus'].values[0]
+                        # genus = df.loc[df['SeqID'] == sample_id]['Genus'].values[0]
 
                         # Serovar
                         serovar = df.loc[df['SeqID'] == sample_id]['SISTR_serovar'].values[0]
@@ -232,28 +245,28 @@ def generate_roga(seq_list, genus, lab):
                         if 'stn' in marker_list:
                             stn = '+'
 
-                        table.add_row((lsts_id, genus, serovar, inva, stn))
+                        table.add_row((lsts_id, serovar, inva, stn))
                     table.add_hline()
 
-                create_caption(genesippr_section, 'i', ' "+" indicates marker presence, "-" indicates marker absence')
-                create_caption(genesippr_section, 'ii', ' Serovar determined with SISTR v1.x')
-                create_caption(genesippr_section, 'iii', ' Genus determined using the 16S region')
+                create_caption(genesippr_section, 'a', 'Serovar determined with SISTR v1.x')
+                create_caption(genesippr_section, 'b', '"+" indicates marker presence, "-" indicates marker absence')
 
         #########################
         #########################
 
-        # SEQUENCE DATA QUALITY
+        # SEQUENCE QUALITY METRICS
         sequence_quality_columns = (bold('LSTS ID'),
-                                    bold('Total Length'),
-                                    bold('Coverage'),
-                                    bold('# of Contigs'),
-                                    bold('GDCS Matches'),
-                                    bold('Pass/Fail')
+                                    bold(pl.NoEscape(r'Total Length{\footnotesize \textsuperscript {a}}')),
+                                    bold(pl.NoEscape(r'Coverage{\footnotesize \textsuperscript {b}}')),
+                                    bold(pl.NoEscape(r'rMLST{\footnotesize \textsuperscript {c}}')),
+                                    bold(pl.NoEscape(r'MLST{\footnotesize \textsuperscript {c}}')),
+                                    bold(pl.NoEscape(r'GDCS{\footnotesize \textsuperscript {d}}')),
+                                    bold(pl.NoEscape(r'Pass/Fail{\footnotesize \textsuperscript {e}}')),
                                     )
 
         # Create the sequence table
-        with doc.create(pl.Subsection('Sequence Data Quality', numbering=False)) as sequence_section:
-            with doc.create(pl.Tabular('|c|c|c|c|c|c|')) as table:
+        with doc.create(pl.Subsection('Sequence Quality Metrics', numbering=False)) as sequence_section:
+            with doc.create(pl.Tabular('|c|c|c|c|c|c|c|')) as table:
                 # Header
                 table.add_hline()
                 table.add_row(sequence_quality_columns)
@@ -266,7 +279,14 @@ def generate_roga(seq_list, genus, lab):
                     lsts_id = df.loc[df['SeqID'] == sample_id]['SampleName'].values[0]
                     total_length = df.loc[df['SeqID'] == sample_id]['TotalLength'].values[0]
                     average_coverage_depth = df.loc[df['SeqID'] == sample_id]['AverageCoverageDepth'].values[0]
-                    num_contigs = df.loc[df['SeqID'] == sample_id]['NumContigs'].values[0]
+                    mlst = df.loc[df['SeqID'] == sample_id]['MLST_Result'].values[0]
+                    rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0]
+
+                    # Fix coverage
+                    average_coverage_depth = format(float(average_coverage_depth.replace('X','')), '.0f')
+                    average_coverage_depth = str(average_coverage_depth) + 'X'
+
+                    # Matches
                     matches = gdcs_dict[sample_id][0]
 
                     passfail = gdcs_dict[sample_id][1]
@@ -276,19 +296,29 @@ def generate_roga(seq_list, genus, lab):
                         passfail = 'Fail'
 
                     # Add row
-                    table.add_row((lsts_id, total_length, average_coverage_depth,
-                                   num_contigs, matches, passfail))
+                    table.add_row((lsts_id, total_length, average_coverage_depth, mlst, rmlst, matches, passfail))
                 table.add_hline()
-        create_caption(sequence_section, 'i', ' GDCS refers to genomically dispersed conserved sequences')
-        create_caption(sequence_section, 'ii', ' Pass/Fail is determined by evaluating # of GDCS matches')
+        create_caption(sequence_section, 'a', 'Total length refers to the total number of nucleotides in '
+                                                'the assembled sequence data.')
+        create_caption(sequence_section, 'b', 'Coverage refers to sequencing redundancy. '
+                                               'A minimum coverage of 20X indicates that, on average, '
+                                               'each nucleotide in the genome has been covered by 20 sequence reads.')
+        create_caption(sequence_section, 'c', 'Something about rMLST and MLST')
+        create_caption(sequence_section, 'd', 'Sequence data is queried for Genomically Dispersed Conserved Sequences'
+                                              ' (GDCS) which currently include 53 ribosomal proteins distributed '
+                                              'throughout the genome and conserved in all bacterial species.')
+        create_caption(sequence_section, 'e', 'Pass/Fail is determined by evaluating the number of GDCS matches.')
+
+
 
         # Pipeline metadata table
         pipeline_metadata_columns = (bold('LSTS ID'),
                                      bold('Seq ID'),
-                                     bold('Pipeline Version'))  # TODO: Parse in database version once it's ready
+                                     bold('Pipeline Version'),
+                                     bold('Database Version'))
 
         with doc.create(pl.Subsection('Pipeline Metadata', numbering=False)):
-            with doc.create(pl.Tabular('|c|c|c|')) as table:
+            with doc.create(pl.Tabular('|c|c|c|c|')) as table:
                 # Header
                 table.add_hline()
                 table.add_row(pipeline_metadata_columns)
@@ -302,12 +332,33 @@ def generate_roga(seq_list, genus, lab):
 
                     # Pipeline version
                     pipeline_version = df.loc[df['SeqID'] == sample_id]['PipelineVersion'].values[0]
+                    database_version = pipeline_version  # These have been harmonized
                     # database_version = df.loc[df['SeqID'] == sample_id]['DatabaseVersion'].values[0]
 
                     # Add row
-                    table.add_row((lsts_id, sample_id, pipeline_version))
+                    table.add_row((lsts_id, sample_id, pipeline_version, database_version))
 
                 table.add_hline()
+
+    # # REFERENCES
+    # with doc.create(pl.Subsubsection('References', numbering=False)):
+    #     with doc.create(pl.Enumerate()) as enum:
+    #         enum.add_item(pl.FootnoteText("Hayashi T, Makino K, Ohnishi M, Kurokawa K, Ishii K, Yokoyama K, Han CG, Ohtsubo E, "
+    #                       "Nakayama K, Murata T et al. 2001. Complete genome sequence of enterohemorrhagic Escherichia "
+    #                       "coli O157:H7 and genomic comparison with a laboratory strain K-12. "
+    #                       "DNA Res 2001, 8(1):11-22."))
+    #         enum.add_item(pl.FootnoteText("Jaureguy F, Landraud L, Passet V, Diancourt L, Frapy E, Guigon G, et al. 2008. Phylogenetic "
+    #                       "and "
+    #                       "genomic diversity of human bacteremic Escherichia coli strains. BMC Genomics. 9:560."))
+    #         enum.add_item(pl.FootnoteText("Jolley KA, Bliss CM, Bennett JS, Bratcher HB, et al. 2012. "
+    #                                       "Ribosomal multilocus sequence typing: universal characterization of bacteria "
+    #                                       "from domain to strain. Microbiology. 158:1005-15"))
+    #         enum.add_item(pl.FootnoteText("Carrillo CD, Koziol AG, Mathews A, Goji N, Lambert D, "
+    #                                       "Huszczynski G, Gauthier M, Amoako K K, Blais B. 2016. "
+    #                                       "Comparative evaluation of genomic and laboratory approaches for "
+    #                                       "determination of shiga toxin subtypes in Escherichia coli. "
+    #                                       "Journal of Food Protection 79(12):2078-2085."))
+
 
     doc.generate_pdf('ROGA_{}_{}'.format(datetime.today().strftime('%Y-%m-%d'), genus), clean_tex=False)
 
@@ -342,8 +393,21 @@ def create_caption(section, superscript, text):
     :param text: descriptive text
     """
     section.append('\n')
-    section.append(bold(pl.NoEscape(r'\textsuperscript{' + superscript + '}')))
-    section.append(italic(text))
+
+    # Superscript
+    section.append(bold(pl.NoEscape(r'{\footnotesize \textsuperscript {' + superscript + '}}')))
+    # section.append(bold(pl.NoEscape('{}. '.format(superscript)))
+    # section.append(bold(pl.NoEscape(r'\textsuperscript{' + superscript + '}')))
+
+    # Text
+    section.append(italic(pl.NoEscape(r'{\footnotesize {' + text + '}}')))
+    # section.append(italic('\t' + pl.NoEscape(r'\fontsize{10}{' + text + '}')))
+
+
+def remove_bracketed_values(string):
+    p = re.compile('\(.*?\)')  # Regex to remove bracketed terms
+    new_string = re.sub(p, '', string).replace(' ','')  # Remove bracketed terms and spaces
+    return new_string
 
 
 def get_image():
