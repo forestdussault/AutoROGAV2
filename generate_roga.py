@@ -33,37 +33,6 @@ lab_info = {
 }
 
 
-def redmine_roga():
-    """
-    Main method for generating a ROGA. Will eventually be ported over to support Redmine.
-    :return:
-    """
-    # dummy_list = ('2017-SEQ-0725', '2017-SEQ-0724')  # Tuple this to keep the order
-    # genus = 'Salmonella'
-
-    dummy_list = ('2017-SEQ-0773', '2017-SEQ-0772')  # Tuple this to keep the order
-    genus = 'Escherichia'
-    #
-    # dummy_list = ('2017-SEQ-1222', '2017-SEQ-1223')  # Tuple this to keep the order
-    # genus = 'Listeria'
-
-    lab = 'GTA-CFIA'
-
-    # FIRST VALIDATION PASS
-    validated_list = extract_report_data.generate_validated_list(seq_list=dummy_list,
-                                                                 genus=genus)
-
-    if len(validated_list) == 0:
-        print('ERROR: No samples provided matched the expected genus. Quitting.'.format(genus.upper()))
-        quit()
-
-    # GENERATE REPORT
-    generate_roga(seq_list=validated_list,
-                  genus=genus,
-                  lab=lab)
-    print('Generated ROGA successfully.')
-
-
 def generate_roga(seq_list, genus, lab):
     """
     Generates PDF ROGA
@@ -159,15 +128,16 @@ def generate_roga(seq_list, genus, lab):
 
             if genus == 'Escherichia':
                 if all_uida:
-                    summary.append('All of the following strains are confirmed to be ')
+                    summary.append('All of the following strains are confirmed as ')
                     summary.append(italic('Escherichia coli '))
                     summary.append('based on 16S sequence and the presence of marker gene ')
                     summary.append(italic('uidA. '))
                 elif not all_uida:
-                    summary.append('Some of the following strains cannot be confirmed to be ')
+                    summary.append('Some of the following strains could not be confirmed to be ')
                     summary.append(italic('Escherichia coli '))
-                    summary.append('due to the inability to detect marker gene ')
-                    summary.append(italic('uidA. '))
+                    summary.append('as the ')
+                    summary.append(italic('uidA '))
+                    summary.append('marker gene was not detected. ')
 
                 if all_vt:
                     summary.append('All strains are confirmed to be verotoxigenic based on presence of the ')
@@ -232,10 +202,10 @@ def generate_roga(seq_list, genus, lab):
                         mlst = df.loc[df['SeqID'] == sample_id]['MLST_Result'].values[0]
                         rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0]
 
-                        # Getting marker status. There is certainly a nicer way to do this.
-                        marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
-                        (vt1, vt2, vt2f, uida, eae) = '-', '-', '-', '-', '-'
 
+                        marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
+
+                        (uida, eae) = '-', '-'
                         if 'uidA' in marker_list:
                             uida = '+'
                         if 'eae' in marker_list:
@@ -289,7 +259,8 @@ def generate_roga(seq_list, genus, lab):
 
                         table.add_row((lsts_id, igs, hlya, inlj, rmlst, mlst))
                     table.add_hline()
-                create_caption(genesippr_section, 'a', '"+" indicates marker presence, "-" indicates marker absence')
+                create_caption(genesippr_section, 'a', '"+" indicates marker presence, '
+                                                       '"-" indicates marker absence')
 
         # SALMONELLA TABLE
         if genus == 'Salmonella':
@@ -333,7 +304,8 @@ def generate_roga(seq_list, genus, lab):
                     table.add_hline()
 
                 create_caption(genesippr_section, 'a', 'Serovar determined with SISTR v1.x')
-                create_caption(genesippr_section, 'b', '"+" indicates marker presence, "-" indicates marker absence')
+                create_caption(genesippr_section, 'b', '"+" indicates marker presence, '
+                                                       '"-" indicates marker absence')
 
         #########################
 
@@ -412,8 +384,8 @@ def generate_roga(seq_list, genus, lab):
             with doc.create(Form()):
                 doc.append(pl.Command('noindent'))
                 doc.append(pl.Command('TextField',
-                                      options=["name=multilinetextbox", "multiline=true",
-                                               pl.NoEscape("width=\linewidth"), "height=0.3in"],
+                                      options=["name=multilinetextbox", "multiline=false", pl.NoEscape("bordercolor=0.2 0.2 0.7"),
+                                               pl.NoEscape("width=2.5in"), "height=0.3in"],
                                       arguments=''))
 
     doc.generate_pdf('ROGA_{}_{}'.format(datetime.today().strftime('%Y-%m-%d'), genus), clean_tex=False)
@@ -436,9 +408,8 @@ def produce_header_footer():
     # Footer
     with header.create(pl.Foot("C")):
         with header.create(pl.Tabular('lcr')) as table:
-            table.add_row(('', bold('Data interpretation guidelines can be found in RDIMS document #####'), ''))
-            table.add_row(('', bold('This report was generated with OLC AutoROGA v0.0.1'), ''))
-
+            table.add_row('', bold('Data interpretation guidelines can be found in RDIMS document #####'), '')
+            table.add_row('', bold('This report was generated with OLC AutoROGA v0.0.1'), '')
     return header
 
 
@@ -480,6 +451,50 @@ class Form(pl.base_classes.Environment):
     packages = [pl.Package('hyperref')]
     escape = False
     content_separator = "\n"
+
+
+def redmine_roga():
+    """
+    Main method for generating a ROGA. Will eventually be ported over to support Redmine.
+    :return:
+    """
+    # dummy_list = ('2017-SEQ-0725', '2017-SEQ-0724')  # Tuple this to keep the order
+    # genus = 'Salmonella'
+
+    dummy_list = ('2017-SEQ-0773', '2017-SEQ-0772')  # Tuple this to keep the order
+    genus = 'Escherichia'
+    #
+    # dummy_list = ('2017-SEQ-1222', '2017-SEQ-1223')  # Tuple this to keep the order
+    # genus = 'Listeria'
+
+    lab = 'GTA-CFIA'
+
+    # Validate user input
+    if lab not in lab_info:
+        print('Input value "{}" not found in laboratory directory. '
+              'Please specify a lab name from the following list:'.format(lab))
+        for key, value in lab_info.items():
+            print('\t' + key)
+        quit()
+
+    if genus not in ['Escherichia', 'Salmonella', 'Listeria']:
+        print('Input genus {} does not match any of the acceptable values which include: '
+              '"Escherichia", "Salmonella", "Listeria"'.format(genus))
+        quit()
+
+    # Validate Seq IDS
+    validated_list = extract_report_data.generate_validated_list(seq_list=dummy_list,
+                                                                 genus=genus)
+
+    if len(validated_list) == 0:
+        print('ERROR: No samples provided matched the expected genus. Quitting.'.format(genus.upper()))
+        quit()
+
+    # GENERATE REPORT
+    generate_roga(seq_list=validated_list,
+                  genus=genus,
+                  lab=lab)
+    print('Generated ROGA successfully.')
 
 
 if __name__ == '__main__':
