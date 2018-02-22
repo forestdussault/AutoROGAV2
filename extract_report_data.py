@@ -63,7 +63,7 @@ def validate_genus(seq_list, genus):
     valid_status = {}
 
     for seqid in seq_list:
-        print('Checking {}'.format(seqid))
+        print('Validating {} genus'.format(seqid))
         df = metadata_reports[seqid]
         observed_genus = df.loc[df['SeqID'] == seqid]['Genus'].values[0]
         if observed_genus == genus:
@@ -73,6 +73,57 @@ def validate_genus(seq_list, genus):
 
     return valid_status
 
+
+def validate_ecoli(seq_list, metadata_reports):
+    """
+    Checks if the uidA marker and vt markers are present in the combinedMetadata sheets and stores True/False for
+    each SeqID. Values are stored as tuples: (uida_present, verotoxigenic)
+    :param seq_list: List of OLC Seq IDs
+    :param metadata_reports: Dictionary retrieved from get_combined_metadata()
+    :return: Dictionary containing Seq IDs as keys and (uidA, vt) presence or absence for values.
+             Present = True, Absent = False
+    """
+    ecoli_seq_status = {}
+
+    for seqid in seq_list:
+        print('Validating {} uidA and vt marker detection'.format(seqid))
+        df = metadata_reports[seqid]
+        observed_genus = df.loc[df['SeqID'] == seqid]['Genus'].values[0]
+        uida_present = False
+        verotoxigenic = False
+
+        if observed_genus == 'Escherichia':
+            if 'uidA' in df.loc[df['SeqID'] == seqid]['GeneSeekr_Profile'].values[0]:
+                uida_present = True
+            if 'vt' in df.loc[df['SeqID'] == seqid]['Vtyper_Profile'].values[0]:
+                verotoxigenic = True
+            ecoli_seq_status[seqid] = (uida_present, verotoxigenic)
+
+    return ecoli_seq_status
+
+
+def validate_mash(seq_list, metadata_reports, expected_species):
+    """
+    Takes a species name as a string (i.e. 'Salmonella enterica') and creates a dictionary with keys for each Seq ID
+    and boolean values if the value pulled from MASH_ReferenceGenome matches the string or not
+    :param seq_list: List of OLC Seq IDs
+    :param metadata_reports: Dictionary retrieved from get_combined_metadata()
+    :param expected_species: String containing expected species
+    :return: Dictionary with Seq IDs as keys and True/False as values
+    """
+    seq_status = {}
+
+    for seqid in seq_list:
+        print('Validating MASH reference genome for {} '.format(seqid))
+        df = metadata_reports[seqid]
+        observed_species = df.loc[df['SeqID'] == seqid]['MASH_ReferenceGenome'].values[0]
+
+        if observed_species == expected_species:
+            seq_status[seqid] = True
+        else:
+            seq_status[seqid] = False
+
+    return seq_status
 
 def generate_validated_list(seq_list, genus):
     """
