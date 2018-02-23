@@ -2,6 +2,7 @@
 
 from pylatex.utils import italic, bold
 from datetime import datetime
+from database import update_db
 import extract_report_data
 import pylatex as pl
 import click
@@ -18,7 +19,7 @@ A note on Sample IDs:
 
 LSTS ID should be parsed from SampleSheet.csv by the COWBAT pipeline, and available within the combinedMetadata.csv
 file that is central to this script's extraction of data. The LSTS ID is available under the SampleName column in
-combinedMetadata.csv.O
+combinedMetadata.csv
 """
 
 
@@ -44,6 +45,10 @@ def generate_roga(seq_list, genus, lab, source):
     # Grab combinedMetadata dataframes for each requested Seq ID
     metadata_reports = extract_report_data.get_combined_metadata(seq_list)
 
+    # Date setup
+    date = datetime.today().strftime('%Y-%m-%d')
+    year = datetime.today().strftime('%Y')
+
     # Grab GDCS data for each requested Seq ID
     gdcs_reports = extract_report_data.get_gdcs(seq_list)
     gdcs_dict = extract_report_data.generate_gdcs_dict(gdcs_reports)
@@ -61,6 +66,11 @@ def generate_roga(seq_list, genus, lab, source):
 
     doc.preamble.append(header)
     doc.change_document_style("header")
+
+
+    # Database handling
+    report_id = update_db(date=date, year=year, genus=genus, lab=lab, source=source)
+
 
     # SECOND VALIDATION SCREEN
     if genus == 'Escherichia':
@@ -115,7 +125,15 @@ def generate_roga(seq_list, genus, lab, source):
             all_enterica = False
 
     # DOCUMENT BODY/CREATION
-    with doc.create(pl.Section('Report of Genomic Analysis', numbering=False)):
+    with doc.create(pl.Section('Report of Genomic Analysis: ' + genus, numbering=False)):
+
+        # REPORT ID
+        with doc.create(pl.Subsubsection(('Report ID: ' + report_id), numbering=False)):
+            pass
+
+        with doc.create(pl.Subsubsection(('Reporting Laboratory: ' + lab), numbering=False)):
+            pass
+
         # LAB SUMMARY
         with doc.create(pl.Tabular('lcr', booktabs=True)) as table:
             table.add_row(bold('Laboratory'),
@@ -124,13 +142,15 @@ def generate_roga(seq_list, genus, lab, source):
             table.add_row(lab, lab_info[lab][0], lab_info[lab][1])
 
         # TEXT SUMMARY
-        with doc.create(pl.Subsection(genus + ' Identification Summary', numbering=False)) as summary:
+        with doc.create(pl.Subsection('Identification Summary', numbering=False)) as summary:
+
+            summary.append('Whole-genome sequencing analysis was conducted on {} presumptive '.format(len(metadata_reports)))
+            summary.append(italic('{} '.format(genus)))
+
             if len(metadata_reports) == 1:
-                summary.append('Whole-genome sequencing analysis was conducted on {}'
-                               ' strain isolated from {}. '.format(len(metadata_reports), source))
+                summary.append('strain isolated from {}. '.format(source))
             else:
-                summary.append('Whole-genome sequencing analysis was conducted on {}'
-                               ' strains isolated from {}. '.format(len(metadata_reports), source))
+                summary.append('strains isolated from {}. '.format(source))
 
             if genus == 'Escherichia':
                 if all_uida:
@@ -219,8 +239,8 @@ def generate_roga(seq_list, genus, lab, source):
                         table.add_row((lsts_id, uida, fixed_serotype, verotoxin, eae, mlst, rmlst))
                     table.add_hline()
 
-                create_caption(genesippr_section, 'a', "'+' indicates marker presence : "
-                                                       "'-' indicates marker was not detected")
+                create_caption(genesippr_section, 'a', "+ indicates marker presence : "
+                                                       "- indicates marker was not detected")
 
         # LISTERIA TABLE
         if genus == 'Listeria':
@@ -264,23 +284,24 @@ def generate_roga(seq_list, genus, lab, source):
 
                         table.add_row((lsts_id, igs, hlya, inlj, mlst, rmlst))
                     table.add_hline()
-                create_caption(genesippr_section, 'a', "'+' indicates marker presence : "
-                                                       "'-' indicates marker was not detected")
+                create_caption(genesippr_section, 'a', "+ indicates marker presence : "
+                                                       "- indicates marker was not detected")
 
         # SALMONELLA TABLE
         if genus == 'Salmonella':
             genesippr_table_columns = (bold('LSTS ID'),
-                                       bold(pl.NoEscape(r'Serovar{\footnotesize \textsuperscript {a}}')),
+                                       bold(pl.NoEscape(r'Serovar')),
+                                       bold(pl.NoEscape(r'Serogroup{\footnotesize \textsuperscript {a}}')),
                                        bold(pl.NoEscape(r'H1')),
                                        bold(pl.NoEscape(r'H2')),
-                                       bold(pl.NoEscape(r'invA{\footnotesize \textsuperscript {b}}')),
-                                       bold(pl.NoEscape(r'stn{\footnotesize \textsuperscript {b}}')),
+                                       bold(pl.NoEscape(r'invA{\footnotesize \textsuperscript {a}}')),
+                                       bold(pl.NoEscape(r'stn{\footnotesize \textsuperscript {a}}')),
                                        bold(pl.NoEscape(r'MLST')),
                                        bold(pl.NoEscape(r'rMLST')),
                                        )
 
             with doc.create(pl.Subsection('GeneSeekr Analysis', numbering=False)) as genesippr_section:
-                with doc.create(pl.Tabular('|c|c|c|c|c|c|c|c|')) as table:
+                with doc.create(pl.Tabular('|c|c|c|c|c|c|c|c|c|')) as table:
                     # Header
                     table.add_hline()
                     table.add_row(genesippr_table_columns)
@@ -299,7 +320,8 @@ def generate_roga(seq_list, genus, lab, source):
                         # Serovar
                         serovar = df.loc[df['SeqID'] == sample_id]['SISTR_serovar'].values[0]
 
-                        # SISTR H1, H2
+                        # SISTR Serogroup, H1, H2
+                        sistr_serogroup = df.loc[df['SeqID'] == sample_id]['SISTR_serogroup'].values[0]
                         sistr_h1 = df.loc[df['SeqID'] == sample_id]['SISTR_h1'].values[0].strip(';')
                         sistr_h2 = df.loc[df['SeqID'] == sample_id]['SISTR_h2'].values[0].strip(';')
 
@@ -311,12 +333,11 @@ def generate_roga(seq_list, genus, lab, source):
                         if 'stn' in marker_list:
                             stn = '+'
 
-                        table.add_row((lsts_id, serovar, sistr_h1, sistr_h2, inva, stn, mlst, rmlst))
+                        table.add_row((lsts_id, serovar, sistr_serogroup, sistr_h1, sistr_h2, inva, stn, mlst, rmlst))
                     table.add_hline()
 
-                create_caption(genesippr_section, 'a', 'Serovar determined with SISTR v1.x')
-                create_caption(genesippr_section, 'b', "'+' indicates marker presence : "
-                                                       "'-' indicates marker was not detected")
+                create_caption(genesippr_section, 'a', "+ indicates marker presence : "
+                                                       "- indicates marker was not detected")
 
         # SEQUENCE QUALITY METRICS
         sequence_quality_columns = (bold('LSTS ID'),
@@ -400,7 +421,7 @@ def generate_roga(seq_list, genus, lab, source):
                                                "height=0.3in"],
                                       arguments=''))
 
-    doc.generate_pdf('ROGA_{}_{}'.format(datetime.today().strftime('%Y-%m-%d'), genus), clean_tex=False)
+    doc.generate_pdf('ROGA_{}_{}'.format(date, genus), clean_tex=False)
 
 
 def produce_header_footer():
@@ -472,12 +493,12 @@ def redmine_roga():
     """
     # dummy_list = ('2017-SEQ-0725', '2017-SEQ-0724')  # Tuple this to keep the order
     # genus = 'Salmonella'
-    #
-    # dummy_list = ('2017-SEQ-0773', '2017-SEQ-0772')  # Tuple this to keep the order
-    # genus = 'Escherichia'
 
-    dummy_list = ('2017-SEQ-1222', '2017-SEQ-1223')  # Tuple this to keep the order
-    genus = 'Listeria'
+    dummy_list = ('2017-SEQ-0773', '2017-SEQ-0772')  # Tuple this to keep the order
+    genus = 'Escherichia'
+
+    # dummy_list = ('2017-SEQ-1222', '2017-SEQ-1223')  # Tuple this to keep the order
+    # genus = 'Listeria'
 
     lab = 'GTA-CFIA'
     source = 'flour'
