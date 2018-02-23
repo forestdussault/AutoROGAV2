@@ -206,7 +206,7 @@ def generate_roga(seq_list, genus, lab, source):
 
                         # MLST/rMLST
                         mlst = df.loc[df['SeqID'] == sample_id]['MLST_Result'].values[0]
-                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0].replace('-','New')
+                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0].replace('-', 'New')
 
                         marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
 
@@ -250,7 +250,7 @@ def generate_roga(seq_list, genus, lab, source):
 
                         # MLST/rMLST
                         mlst = df.loc[df['SeqID'] == sample_id]['MLST_Result'].values[0]
-                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0].replace('-','New')
+                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0].replace('-', 'New')
 
                         # Markers
                         marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
@@ -266,7 +266,6 @@ def generate_roga(seq_list, genus, lab, source):
                     table.add_hline()
                 create_caption(genesippr_section, 'a', "'+' indicates marker presence : "
                                                        "'-' indicates marker was not detected")
-
 
         # SALMONELLA TABLE
         if genus == 'Salmonella':
@@ -295,7 +294,7 @@ def generate_roga(seq_list, genus, lab, source):
 
                         # MLST/rMLST
                         mlst = df.loc[df['SeqID'] == sample_id]['MLST_Result'].values[0]
-                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0].replace('-','New')
+                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0].replace('-', 'New')
 
                         # Serovar
                         serovar = df.loc[df['SeqID'] == sample_id]['SISTR_serovar'].values[0]
@@ -318,9 +317,6 @@ def generate_roga(seq_list, genus, lab, source):
                 create_caption(genesippr_section, 'a', 'Serovar determined with SISTR v1.x')
                 create_caption(genesippr_section, 'b', "'+' indicates marker presence : "
                                                        "'-' indicates marker was not detected")
-
-
-        #########################
 
         # SEQUENCE QUALITY METRICS
         sequence_quality_columns = (bold('LSTS ID'),
@@ -397,8 +393,11 @@ def generate_roga(seq_list, genus, lab, source):
             with doc.create(Form()):
                 doc.append(pl.Command('noindent'))
                 doc.append(pl.Command('TextField',
-                                      options=["name=multilinetextbox", "multiline=false", pl.NoEscape("bordercolor=0 0 0"),
-                                               pl.NoEscape("width=2.5in"), "height=0.3in"],
+                                      options=["name=multilinetextbox",
+                                               "multiline=false",
+                                               pl.NoEscape("bordercolor=0 0 0"),
+                                               pl.NoEscape("width=2.5in"),
+                                               "height=0.3in"],
                                       arguments=''))
 
     doc.generate_pdf('ROGA_{}_{}'.format(datetime.today().strftime('%Y-%m-%d'), genus), clean_tex=False)
@@ -482,7 +481,6 @@ def redmine_roga():
 
     lab = 'GTA-CFIA'
     source = 'flour'
-
 
     # Validate user input
     if lab not in lab_info:
