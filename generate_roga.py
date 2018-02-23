@@ -10,7 +10,6 @@ import re
 
 
 # TODO: GDCS + GenomeQAML combined metric. Everything must pass in order to be listed as 'PASS'
-# TODO: Make a companion document that desribes the metrics and how they were achieved in detail
 # TODO: Port for Redmine usage
 
 
@@ -33,12 +32,13 @@ lab_info = {
 }
 
 
-def generate_roga(seq_list, genus, lab):
+def generate_roga(seq_list, genus, lab, source):
     """
     Generates PDF ROGA
     :param seq_list: List of OLC Seq IDs
     :param genus: Expected Genus for samples (Salmonella, Listeria, or Escherichia)
     :param lab: ID for lab report is being generated for
+    :param source: string input for source that strains were derived from, i.e. 'ground beef'
     """
 
     # Grab combinedMetadata dataframes for each requested Seq ID
@@ -125,6 +125,12 @@ def generate_roga(seq_list, genus, lab):
 
         # TEXT SUMMARY
         with doc.create(pl.Subsection(genus + ' Identification Summary', numbering=False)) as summary:
+            if len(metadata_reports) == 1:
+                summary.append('Whole-genome sequencing analysis was conducted on {}'
+                               ' strain isolated from {}. '.format(len(metadata_reports), source))
+            else:
+                summary.append('Whole-genome sequencing analysis was conducted on {}'
+                               ' strains isolated from {}. '.format(len(metadata_reports), source))
 
             if genus == 'Escherichia':
                 if all_uida:
@@ -165,12 +171,12 @@ def generate_roga(seq_list, genus, lab):
         # ESCHERICHIA TABLE
         if genus == 'Escherichia':
             genesippr_table_columns = (bold('LSTS ID'),
-                                       bold(pl.NoEscape(r'Verotoxin Profile')),
                                        bold(pl.NoEscape(r'uidA{\footnotesize \textsuperscript {a}}')),
-                                       bold(pl.NoEscape(r'eae{\footnotesize \textsuperscript {a}}')),
                                        bold(pl.NoEscape(r'Serotype')),
-                                       bold(pl.NoEscape(r'rMLST')),
+                                       bold(pl.NoEscape(r'Verotoxin Profile')),
+                                       bold(pl.NoEscape(r'eae{\footnotesize \textsuperscript {a}}')),
                                        bold(pl.NoEscape(r'MLST')),
+                                       bold(pl.NoEscape(r'rMLST')),
                                        )
 
             with doc.create(pl.Subsection('GeneSeekr Analysis', numbering=False)) as genesippr_section:
@@ -196,12 +202,11 @@ def generate_roga(seq_list, genus, lab):
                         fixed_serotype = remove_bracketed_values(serotype)
 
                         # Verotoxin
-                        vtyper = df.loc[df['SeqID'] == sample_id]['Vtyper_Profile'].values[0]
+                        verotoxin = df.loc[df['SeqID'] == sample_id]['Vtyper_Profile'].values[0]
 
                         # MLST/rMLST
                         mlst = df.loc[df['SeqID'] == sample_id]['MLST_Result'].values[0]
-                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0]
-
+                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0].replace('-','New')
 
                         marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
 
@@ -211,11 +216,11 @@ def generate_roga(seq_list, genus, lab):
                         if 'eae' in marker_list:
                             eae = '+'
 
-                        table.add_row((lsts_id, vtyper, uida, eae, fixed_serotype, rmlst, mlst))
+                        table.add_row((lsts_id, uida, fixed_serotype, verotoxin, eae, mlst, rmlst))
                     table.add_hline()
 
-                create_caption(genesippr_section, 'a', '"+" indicates marker presence, '
-                                                       '"-" indicates marker was not detected')
+                create_caption(genesippr_section, 'a', "'+' indicates marker presence : "
+                                                       "'-' indicates marker was not detected")
 
         # LISTERIA TABLE
         if genus == 'Listeria':
@@ -223,8 +228,8 @@ def generate_roga(seq_list, genus, lab):
                                        bold(pl.NoEscape(r'IGS{\footnotesize \textsuperscript {a}}')),
                                        bold(pl.NoEscape(r'hlyA{\footnotesize \textsuperscript {a}}')),
                                        bold(pl.NoEscape(r'inlJ{\footnotesize \textsuperscript {a}}')),
-                                       bold(pl.NoEscape(r'rMLST')),
                                        bold(pl.NoEscape(r'MLST')),
+                                       bold(pl.NoEscape(r'rMLST')),
                                        )
 
             with doc.create(pl.Subsection('GeneSeekr Analysis', numbering=False)) as genesippr_section:
@@ -245,7 +250,7 @@ def generate_roga(seq_list, genus, lab):
 
                         # MLST/rMLST
                         mlst = df.loc[df['SeqID'] == sample_id]['MLST_Result'].values[0]
-                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0]
+                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0].replace('-','New')
 
                         # Markers
                         marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
@@ -257,23 +262,26 @@ def generate_roga(seq_list, genus, lab):
                         if 'inlJ' in marker_list:
                             inlj = '+'
 
-                        table.add_row((lsts_id, igs, hlya, inlj, rmlst, mlst))
+                        table.add_row((lsts_id, igs, hlya, inlj, mlst, rmlst))
                     table.add_hline()
-                create_caption(genesippr_section, 'a', '"+" indicates marker presence, '
-                                                       '"-" indicates marker absence')
+                create_caption(genesippr_section, 'a', "'+' indicates marker presence : "
+                                                       "'-' indicates marker was not detected")
+
 
         # SALMONELLA TABLE
         if genus == 'Salmonella':
             genesippr_table_columns = (bold('LSTS ID'),
                                        bold(pl.NoEscape(r'Serovar{\footnotesize \textsuperscript {a}}')),
+                                       bold(pl.NoEscape(r'H1')),
+                                       bold(pl.NoEscape(r'H2')),
                                        bold(pl.NoEscape(r'invA{\footnotesize \textsuperscript {b}}')),
                                        bold(pl.NoEscape(r'stn{\footnotesize \textsuperscript {b}}')),
-                                       bold(pl.NoEscape(r'rMLST')),
                                        bold(pl.NoEscape(r'MLST')),
+                                       bold(pl.NoEscape(r'rMLST')),
                                        )
 
             with doc.create(pl.Subsection('GeneSeekr Analysis', numbering=False)) as genesippr_section:
-                with doc.create(pl.Tabular('|c|c|c|c|c|c|')) as table:
+                with doc.create(pl.Tabular('|c|c|c|c|c|c|c|c|')) as table:
                     # Header
                     table.add_hline()
                     table.add_row(genesippr_table_columns)
@@ -287,10 +295,14 @@ def generate_roga(seq_list, genus, lab):
 
                         # MLST/rMLST
                         mlst = df.loc[df['SeqID'] == sample_id]['MLST_Result'].values[0]
-                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0]
+                        rmlst = df.loc[df['SeqID'] == sample_id]['rMLST_Result'].values[0].replace('-','New')
 
                         # Serovar
                         serovar = df.loc[df['SeqID'] == sample_id]['SISTR_serovar'].values[0]
+
+                        # SISTR H1, H2
+                        sistr_h1 = df.loc[df['SeqID'] == sample_id]['SISTR_h1'].values[0].strip(';')
+                        sistr_h2 = df.loc[df['SeqID'] == sample_id]['SISTR_h2'].values[0].strip(';')
 
                         # Markers
                         marker_list = df.loc[df['SeqID'] == sample_id]['GeneSeekr_Profile'].values[0]
@@ -300,12 +312,13 @@ def generate_roga(seq_list, genus, lab):
                         if 'stn' in marker_list:
                             stn = '+'
 
-                        table.add_row((lsts_id, serovar, inva, stn, rmlst, mlst))
+                        table.add_row((lsts_id, serovar, sistr_h1, sistr_h2, inva, stn, mlst, rmlst))
                     table.add_hline()
 
                 create_caption(genesippr_section, 'a', 'Serovar determined with SISTR v1.x')
-                create_caption(genesippr_section, 'b', '"+" indicates marker presence, '
-                                                       '"-" indicates marker absence')
+                create_caption(genesippr_section, 'b', "'+' indicates marker presence : "
+                                                       "'-' indicates marker was not detected")
+
 
         #########################
 
@@ -384,7 +397,7 @@ def generate_roga(seq_list, genus, lab):
             with doc.create(Form()):
                 doc.append(pl.Command('noindent'))
                 doc.append(pl.Command('TextField',
-                                      options=["name=multilinetextbox", "multiline=false", pl.NoEscape("bordercolor=0.2 0.2 0.7"),
+                                      options=["name=multilinetextbox", "multiline=false", pl.NoEscape("bordercolor=0 0 0"),
                                                pl.NoEscape("width=2.5in"), "height=0.3in"],
                                       arguments=''))
 
@@ -408,7 +421,7 @@ def produce_header_footer():
     # Footer
     with header.create(pl.Foot("C")):
         with header.create(pl.Tabular('lcr')) as table:
-            table.add_row('', bold('Data interpretation guidelines can be found in RDIMS document #####'), '')
+            table.add_row('', bold('Data interpretation guidelines can be found in RDIMS document ID: 1040135'), '')
             table.add_row('', bold('This report was generated with OLC AutoROGA v0.0.1'), '')
     return header
 
@@ -460,14 +473,16 @@ def redmine_roga():
     """
     # dummy_list = ('2017-SEQ-0725', '2017-SEQ-0724')  # Tuple this to keep the order
     # genus = 'Salmonella'
-
-    dummy_list = ('2017-SEQ-0773', '2017-SEQ-0772')  # Tuple this to keep the order
-    genus = 'Escherichia'
     #
-    # dummy_list = ('2017-SEQ-1222', '2017-SEQ-1223')  # Tuple this to keep the order
-    # genus = 'Listeria'
+    # dummy_list = ('2017-SEQ-0773', '2017-SEQ-0772')  # Tuple this to keep the order
+    # genus = 'Escherichia'
+
+    dummy_list = ('2017-SEQ-1222', '2017-SEQ-1223')  # Tuple this to keep the order
+    genus = 'Listeria'
 
     lab = 'GTA-CFIA'
+    source = 'flour'
+
 
     # Validate user input
     if lab not in lab_info:
@@ -493,7 +508,8 @@ def redmine_roga():
     # GENERATE REPORT
     generate_roga(seq_list=validated_list,
                   genus=genus,
-                  lab=lab)
+                  lab=lab,
+                  source=source)
     print('Generated ROGA successfully.')
 
 
