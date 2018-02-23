@@ -67,10 +67,8 @@ def generate_roga(seq_list, genus, lab, source):
     doc.preamble.append(header)
     doc.change_document_style("header")
 
-
-    # Database handling
+    # DATABASE HANDLING
     report_id = update_db(date=date, year=year, genus=genus, lab=lab, source=source)
-
 
     # SECOND VALIDATION SCREEN
     if genus == 'Escherichia':
@@ -128,11 +126,13 @@ def generate_roga(seq_list, genus, lab, source):
     with doc.create(pl.Section('Report of Genomic Analysis: ' + genus, numbering=False)):
 
         # REPORT ID
-        with doc.create(pl.Subsubsection(('Report ID: ' + report_id), numbering=False)):
-            pass
+        doc.append(bold('Report ID: '))
+        doc.append(report_id)
 
-        with doc.create(pl.Subsubsection(('Reporting Laboratory: ' + lab), numbering=False)):
-            pass
+        # REPORTING LAB
+        doc.append(bold('\nReporting laboratory: '))
+        doc.append(lab)
+        doc.append('\n\n')
 
         # LAB SUMMARY
         with doc.create(pl.Tabular('lcr', booktabs=True)) as table:
