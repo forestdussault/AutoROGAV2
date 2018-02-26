@@ -421,7 +421,7 @@ def generate_roga(seq_list, genus, lab, source):
                                                "height=0.3in"],
                                       arguments=''))
 
-    doc.generate_pdf('ROGA_{}_{}'.format(date, genus), clean_tex=False)
+    doc.generate_pdf('{}_{}_{}'.format(report_id, genus, date), clean_tex=False)
 
 
 def produce_header_footer():
@@ -441,7 +441,7 @@ def produce_header_footer():
     # Footer
     with header.create(pl.Foot("C")):
         with header.create(pl.Tabular('lcr')) as table:
-            table.add_row('', bold('Data interpretation guidelines can be found in RDIMS document ID: 1040135'), '')
+            table.add_row('', bold('Data interpretation guidelines can be found in RDIMS document ID: 10401305'), '')
             table.add_row('', bold('This report was generated with OLC AutoROGA v0.0.1'), '')
     return header
 
@@ -493,12 +493,12 @@ def redmine_roga():
     """
     # dummy_list = ('2017-SEQ-0725', '2017-SEQ-0724')  # Tuple this to keep the order
     # genus = 'Salmonella'
+    #
+    # dummy_list = ('2017-SEQ-0773', '2017-SEQ-0772')  # Tuple this to keep the order
+    # genus = 'Escherichia'
 
-    dummy_list = ('2017-SEQ-0773', '2017-SEQ-0772')  # Tuple this to keep the order
-    genus = 'Escherichia'
-
-    # dummy_list = ('2017-SEQ-1222', '2017-SEQ-1223')  # Tuple this to keep the order
-    # genus = 'Listeria'
+    dummy_list = ('2017-SEQ-1222', )  # Tuple this to keep the order
+    genus = 'Listeria'
 
     lab = 'GTA-CFIA'
     source = 'flour'

@@ -43,6 +43,6 @@ def update_db(date, year, genus, lab, source):
     con.execute(ins)
 
     # Create report ID
-    report_id = year + '-ROGA-' + str(next_val)
+    report_id = year + '-ROGA-' + '{:04d}'.format(next_val)
 
     return report_id
