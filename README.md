@@ -1,6 +1,6 @@
 # AutoROGAV2
 
-### Note: This project has been moved to the [OLCRedmineAutomator](https://github.com/forestdussault/OLCRedmineAutomator)
+### Note: This project has been moved to the [OLCRedmineAutomator](https://github.com/forestdussault/OLCRedmineAutomator) project
 
 Code to automatically produce OLC reports of genomic analysis (ROGA).
 
